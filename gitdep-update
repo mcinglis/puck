@@ -1,0 +1,26 @@
+#!/bin/env python3
+
+
+import os
+import sys
+
+from gitdep import git
+from gitdep.package import Package
+from gitdep.logger import Logger
+
+
+def main(cwd=None, outfile=None, errfile=None):
+    cwd     = cwd or os.getcwd()
+    outfile = outfile or sys.stdout
+    errfile = errfile or sys.stderr
+
+    package = Package.from_path(git.root_path(cwd),
+                                logger = Logger(outfile, errfile))
+    deps = package.update(dev_deps=True)
+    print(deps)
+
+
+if __name__ == '__main__':
+    main()
+
+
