@@ -11,11 +11,8 @@ def object_repr(obj):
 
 
 def load_json(path):
-    try:
-        with open(path, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+    with open(path, 'r') as f:
+        return json.load(f)
 
 
 DERIVE_PATH_PATTERN = re.compile(r'(.*[/:])|(\.git$)|(/$)')
