@@ -1,26 +1,8 @@
 #!/bin/env python3
 
 
-from argparse import ArgumentParser
-
 from deps.package import Package
 from deps.logger import Logger
-
-
-def main(argv, cwd, outfile, errfile):
-    if argv[1] in {'-h', '--help'}:
-        print_help
-    if argv[1] not in {'update', 'build', '-h', '--help'}:
-        print_help(errfile)
-    elif argv[1] in {'-h', '--help'}:
-        print_help(outfile)
-    else:
-        package = Package.from_path(cwd, dev_deps=True,
-                                    logger=Logger(outfile, errfile))
-        if argv[1] == 'update':
-            package.update_deps()
-        elif argv[1] == 'build':
-            package.build_deps()
 
 
 HELP_STR = '''
@@ -45,6 +27,17 @@ For more information, read the deps README.
 
 def print_help(to):
     print(HELP_STR.strip(), file=to)
+
+
+def main(argv, cwd, outfile, errfile):
+    if argv[1] in {'-h', '--help'}:
+        print_help(outfile)
+    else:
+        package = Package.from_path(cwd, logger=Logger(outfile, errfile))
+        if argv[1] == 'update':
+            package.update_deps(dev=True)
+        for command in argv[1:]:
+            package.execute(command)
 
 
 if __name__ == '__main__':

@@ -1,10 +1,13 @@
 
 
 import os
-from subprocess import check_call, DEVNULL
 
 from . import git
 from .util import object_repr, load_json, derive_path
+
+
+def dir_has_package_json(path):
+    return os.access(os.path.join(path, Package.JSON_PATH), os.F_OK)
 
 
 def log(self, event, *args, **kwargs):
@@ -14,51 +17,80 @@ def log(self, event, *args, **kwargs):
 
 class Package:
 
-    DEFAULT_JSON_PATH = 'Package.json'
-    DEFAULT_DEPS_DIR = 'dependencies'
+    JSON_PATH        = 'Package.json'
+    DEPENDENCIES_DIR = 'dependencies'
 
     @classmethod
-    def from_path(cls, path, deps_dir=None, dev_deps=False, logger=None):
-        return cls.from_root_path(git.root_path(path), deps_dir=deps_dir,
-                                  dev_deps=dev_deps, logger=logger)
+    def from_path(cls, path, require_json=True, **kwargs):
+        try:
+            return cls.from_json(root_path=path,
+                                 json_path=os.path.join(path, cls.JSON_PATH),
+                                 require_json=require_json,
+                                 **kwargs)
+        except FileNotFoundError as e:
+            if os.path.samefile(path, os.path.expanduser('~')):
+                raise e
+            else:
+                return cls.from_path(os.path.dirname(path), **kwargs)
 
     @classmethod
-    def from_root_path(cls, root_path, deps_dir=None,
-                            dev_deps=False, logger=None):
-        return cls.from_json(root_path,
-                             os.path.join(root_path, cls.DEFAULT_JSON_PATH),
-                             deps_dir=deps_dir, dev_deps=False, logger=logger)
+    def from_json(cls, root_path, json_path, require_json=True, **kwargs):
+        jsond = (load_json(json_path)
+                 if require_json or os.access(json_path, os.F_OK) else
+                 dict())
+        # TODO: proper validation of JSON
+        return cls.from_dict(root_path, jsond, **kwargs)
 
     @classmethod
-    def from_json(cls, root_path, json_path, deps_dir=None,
-                       dev_deps=False, logger=None):
-        jsond = load_json(json_path) if os.path.isfile(json_path) else dict()
-        return cls(root_path,
-                   jsond.get('dependencies', [])
-                   + (jsond.get('dev_dependencies', [])
-                      if dev_deps else []),
-                   deps_dir=deps_dir or jsond.get('dependencies_dir', None),
-                   build_cmd=jsond.get('build', None),
-                   logger=logger)
+    def from_dict(cls, root_path, d, **kwargs):
+        return cls(root_path        = root_path,
+                   dependencies     = d.get('dependencies', None),
+                   commands         = d.get('commands', None),
+                   **kwargs)
 
-    def __init__(self, root_path, deps=None, deps_dir=None, build_cmd=None,
-                       logger=None):
+    def __init__(self, root_path, dependencies=None, command_delegate=None,
+                       commands=None, dependencies_root=None, logger=None):
         self.root_path = root_path
-        self.deps_dir = (deps_dir
-                      or os.path.join(self.root_path,
-                                      self.__class__.DEFAULT_DEPS_DIR))
-        self.deps = {Dependency.from_dict(d, self.deps_dir, logger=logger)
-                     for d in deps}
-        self.build_cmd = build_cmd or []
+        self.dependencies_root = (dependencies_root
+                              or os.path.join(self.root_path,
+                                              self.__class__.DEPENDENCIES_DIR))
+        self.dependencies = {Dependency.from_dict(d, self.dependencies_root,
+                                                  logger=logger)
+                             for d in (dependencies or set())}
+        self.commands = commands or dict()
         self.logger = logger
 
-    def __repr__(self):
-        return object_repr(self)
+    @property
+    def dev_dependencies(self):
+        return [d for d in self.dependencies if d.dev]
 
     def __str__(self):
-        return repr(self)
+        return '{}(root_path={})'.format(self.__class__.__name__,
+                                         self.root_path)
 
     log = log
+
+    def all_deps(self, dev=False):
+        deps = self.dependencies if dev else {d for d in self.dependencies
+                                                if not d.dev}
+        for d in deps:
+            d_deps = d.package.all_deps()
+            if any_conflicts(deps, d_deps):
+                self.log('conflict', 
+
+    def update_deps(self, dev=False, updated=None):
+        updated = updated or set()
+        deps = self.dependencies if dev else [d for d in self.dependencies
+                                                if not d.dev]
+        for d in deps:
+            updated |= d.update(updated=updated)
+        return updated
+
+    def execute(self, command, executed=None):
+        executed = executed or set()
+        for d in self.dependencies:
+            d.kkkkkkkkkkkkk
+        pass
 
     def build(self, env, built=None):
         built = self.build_deps(built=built or set())
@@ -85,51 +117,45 @@ class Package:
 class Dependency:
 
     @classmethod
-    def from_dict(cls, d, deps_dir, logger=None):
+    def from_dict(cls, d, root, **kwargs):
         if 'repo' in d.keys():
-            return cls(deps_dir=deps_dir, logger=logger, **d)
+            return cls(root        = root,
+                       repo        = d['repo'],
+                       path        = d.get('path', None),
+                       tag_pattern = d.get('tag_pattern', None),
+                       checkout    = d.get('checkout', None),
+                       env         = d.get('env', None),
+                       dev         = d.get('dev', False)
+                       **kwargs)
         else:
-            if len(d) > 1:
-                raise ValueError('short form of dependency object should ' +
-                                 'only have a single key-value pair, with ' +
-                                 'the repo URL as key, and tag pattern as ' +
-                                 'value')
+            if len(d) != 1:
+                raise ValueError('short form of dependency JSON object '
+                                 'should only have a single key-value')
             repo, tag_pattern = list(d.items())[0]
-            return cls(repo, deps_dir, tag_pattern=tag_pattern, logger=logger)
+            return cls(root=root, repo=repo, tag_pattern=tag_pattern, **kwargs)
 
-    def __init__(self, repo, deps_dir, path=None, tag_pattern=None,
-                       checkout=None, env=None, logger=None):
-        self.repo        = repo
-        self.deps_dir    = deps_dir
-        self.path        = os.path.join(deps_dir,
-                                        path or derive_path(self.repo))
-        self.tag_pattern = tag_pattern or ''
-        self.checkout    = checkout or ''
-        self.env         = dict(list(os.environ.items())
-                              + list((env or dict()).items())
-                              + [('DEPS_DIR', self.deps_dir)])
-        self.logger      = logger
-        self.package     = None     # set by `self.load()`
-
-    def __repr__(self):
-        r = ('{}(repo={}, deps_dir={}, path={}'
-             .format(self.__class__.__name__,
-                     self.repo, self.deps_dir, self.path))
-        if self.tag_pattern:
-            r += ', tag_pattern={}'.format(self.tag_pattern)
-        elif self.checkout:
-            r += ', checkout={}'.format(self.checkout)
-        return r + ')'
+    def __init__(self, root, repo, path=None, tag_pattern=None, checkout=None,
+                       env=None, dev=False, logger=None):
+        self.root     = root
+        self.repo     = Repo.from_json_value(repo)
+        self.path     = os.path.join(root, path or derive_path(repo.url))
+        self.tag      = tag or ''
+        self.checkout = checkout or ''
+        self.env      = dict(list(os.environ.items())
+                           + list((env or dict()).items())
+                           + [('DEPENDENCIES_ROOT', self.root)])
+        self.dev      = dev
+        self.logger   = logger
+        self.package  = None
 
     def __str__(self):
-        return repr(self)
+        return '{}(path={})'.format(self.__class__.__name__, self.path)
 
     def same(self, other):
         return (self.repo == other.repo
-            and self.env == other.env
-            and self.tag_pattern == other.tag_pattern
-            and (self.tag_pattern
-              or self.checkout == other.checkout))
+            and self.tag  == other.tag
+            and (self.tag or (self.checkout == other.checkout))
+            and self.env  == other.env)
 
     log = log
 
@@ -140,6 +166,8 @@ class Dependency:
                     self.log(log_event, d)
                 return True
         return False
+
+    def update(self
 
     def load_package(self):
         if not self.package:
@@ -173,7 +201,9 @@ class Dependency:
         if self.conflicts(updated, 'dep-update--conflict'):
             return updated
         self.log('dep-update')
-        self.update_repo()
+        self.repo.update(self.path,
+                         tag_pattern=self.tag_pattern,
+                         checkout=self.checkout)
         self.load_package()
         return self.package.update_deps(updated=updated | {self})
 
@@ -183,4 +213,5 @@ class Dependency:
             return built
         self.load_package()
         return self.package.build(self.env, built=built | {self})
+
 
