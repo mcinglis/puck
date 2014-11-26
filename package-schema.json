@@ -1,0 +1,52 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+
+    "title": "Package",
+
+    "type": "object",
+    "properties": {
+        "dependencies": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "$ref": "#/definitions/dependency" }
+        },
+        "commands": { "$ref": "#/definitions/commands" }
+    },
+
+    "definitions": {
+        "commands": {
+            "type": "object",
+            "patternProperties": {
+                "^([a-z]|[A-Z]|[0-9]|_|-)+$": {
+                    "oneOf": [
+                        { "type": "array", "items": { "type": "string" } },
+                        { "type": "string" }
+                    ]
+                }
+            }
+        },
+        "dependency": {
+            "type": "object",
+            "properties": {
+                "repo": { "type": "string" },
+                "path": { "type": "string" },
+                "tag":  { "type": "string" },
+                "tree": { "type": "string" },
+                "dev":  { "type": "boolean" }
+                "env": {
+                    "type": "object"
+                    "patternProperties": {
+                        "^([a-z]|[A-Z]|[0-9]|_)+$": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "commands": { "$ref": "#/definitions/commands" }
+            }
+            "required": ["repo"]
+        }
+    }
+
+}
+
+
