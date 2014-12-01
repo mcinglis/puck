@@ -3,14 +3,14 @@
 import os
 from subprocess import check_call, check_output
 
-from .util import derive_path
+from .util import derive_path, event
 
 
 class GitRepo:
 
-    def __init__(self, url, observer=None):
+    def __init__(self, url, observers=None):
         self.url = os.path.expanduser(url)
-        self.observer = observer
+        self.observers = observers or list()
 
     def __eq__(self, other):
         return (self.type == other.type
@@ -20,9 +20,7 @@ class GitRepo:
     def type(self):
         return 'git'
 
-    def event(self, event, **kwargs):
-        if self.observer:
-            self.observer.notify(event, source=self, **kwargs)
+    event = event
 
     def call(self, command, cwd=None, output=False):
         self.event('call', command=command, cwd=cwd)
@@ -37,32 +35,25 @@ class GitRepo:
         else:
             self.call(['git', 'clone', self.url, path], cwd='.')
 
-    def list_tags(self, path, pattern):
+    def tag_list(self, path, pattern):
         return self.call(['git', 'tag', '--list', pattern], cwd=path,
                          output=True)
 
-    def verify(self, path, tag):
+    def tag_verify(self, path, tag):
         self.call(['git', 'tag', '--verify', tag], cwd=path)
 
     def checkout_tag(self, path, pattern, verify=True):
-        tags = self.list_tags(path, pattern)
+        tags = self.tag_list(path, pattern)
         if tags:
             tag = max(tags)
             if verify:
-                self.verify(path, tag)
+                self.tag_verify(path, tag)
             self.checkout(path, tag)
         else:
             self.event('no-matching-tags', path=path, pattern=pattern)
 
     def checkout(self, path, s):
         self.call(['git', 'checkout', s], cwd=path)
-
-    def update(self, path, tag_pattern=None, ref=None, verify=True):
-        self.get_latest(path)
-        if tag_pattern:
-            self.checkout_tag(path, tag_pattern, verify=verify)
-        else:
-            self.checkout(path, ref or 'master')
 
 
 class MercurialRepo:

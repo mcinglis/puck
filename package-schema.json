@@ -17,21 +17,28 @@
         "commands": {
             "type": "object",
             "patternProperties": {
-                "^([a-z]|[A-Z]|[0-9]|_|-)+$": {
-                    "oneOf": [
-                        { "type": "array", "items": { "type": "string" } },
-                        { "type": "string" }
-                    ]
-                }
+                "^([a-z]|[A-Z]|[0-9]|_|-)+$": { "oneOf": [
+                    { "type": "array",
+                      "items": { "type": "string" } },
+                    { "type": "string" }
+                ] }
             }
         },
         "dependency": {
             "type": "object",
             "properties": {
-                "repo": { "type": "string" },
+                "repo": { "oneOf": [
+                    { "type": "string",
+                      "description": "A Git repository URL." },
+                    { "type": "object",
+                      "properties": { "git": { "type": "string" } }
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "maxProperties": 1 }
+                ] },
                 "path": { "type": "string" },
+                "ref":  { "type": "string" },
                 "tag":  { "type": "string" },
-                "tree": { "type": "string" },
                 "dev":  { "type": "boolean" }
                 "env": {
                     "type": "object"

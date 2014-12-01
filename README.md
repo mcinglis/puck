@@ -1,9 +1,9 @@
 
-**Puck** is a tool for downloading a project's dependencies (and their own dependencies), and for applying "commands" to each of those dependencies. You can use it for decoupling a project from the dependencies of its own dependencies, and from the build process (if any) of its dependencies.
+**Puck** is a tool for downloading a project's dependencies (and sub-dependencies), and for applying "commands" to each of those dependencies. You can use it for decoupling a project from the dependencies of its own dependencies, and from the build process (if any) of its dependencies.
 
 Puck requires little buy-in; packages can be used as dependencies without having a `Package.json` file of their own. Puck is small and purpose-built, and has an accessible API. Puck is based on a decentralized model, so you can easily meld it to your requirements.
 
-Puck currently only works with Git repositories, but it has been modelled and documented to be mostly agnostic as to what specific distributed version control system is used.
+Puck currently only works with Git repositories, but it has been modelled and documented to be agnostic as to what distributed version control system is used.
 
 ![puck](https://raw.githubusercontent.com/mcinglis/puck/master/puck.jpg) *RWWEEAARR*
 
@@ -11,7 +11,7 @@ Puck currently only works with Git repositories, but it has been modelled and do
 
 ## How it works
 
-Puck finds and parses a `Package.json` file in the package's root directory, that holds a JSON object representing the dependencies of that package, and how to handle commands issued to it.
+Puck finds and parses a `Package.json` file in the package's root directory, which holds a JSON object representing the dependencies of that package, and how to handle commands issued to it.
 
 
 ### `puck update`
@@ -20,7 +20,7 @@ Puck finds and parses a `Package.json` file in the package's root directory, tha
 
 **In detail:** Puck looks at each of the specified dependency objects, and:
 
-- If the object has a `"path"` member, it is used as the dependency's *path*. Otherwise, the *path* is derived from the `"repo"` member.
+- If the object has a `"path"` member, it is used as the dependency's *path*. Otherwise, the *path* is derived from the `"repo"` member and `"tag"` member if it looks something like `v1.*` or `v5.12.*` or `v9.1.2` (i.e. [semantic versioning](http://semver.org). For example, with `"repo"` equal to "git@bitbucket.org:fake456/libcat.git" and `"tag"` equal to `"v2.5.*"`, the dependency's *path* will be `libcat-2.5`.
 
 - If a directory does not exist at `deps/<path>` within the root directory of the project, the repository is cloned to that path. If a directory does exist that path, then the latest changes are fetched into it.
 
@@ -56,11 +56,11 @@ Conventional command names to specify in your `Package.json` file are `build`, `
 
 ## Example
 
-Suppose we are developing a project that requires Libapple v1, Libbear on the `feature-claws` branch, and Libcat v2.5 built with the `LIBCAT_CUTENESS` environment variable set to `9001`. Suppose that Libapple v1 depends on Libbear v3 and Libdog v1. Libdog v1 depends on Libcat v2.
+Suppose we are developing a project that requires Antifier v1, Libbear on the `feature-claws` branch (obtainable on a network file system) and built via `make fast`, and, for development, Libcat v2.5 built with the `LIBCAT_CUTENESS` environment variable set to `9001`. Suppose that Antifier v1 depends on Libbear v3 and Libdog v1. Libdog v1 depends on Libcat v2 (without the `LIBCAT_CUTENESS` value set as per the root project's dependency).
 
 The authors of our depedencies had the prescience to stick to [semantic versioning](http://semver.org). This means we don't need to be stuck on specific versions: we can simply require a major version of a package via a tag pattern, and let Puck get us the highest minor and patch versions under that major version.
 
-Our project will be using `make` as the build tool, with a makefile having `build`, `test` and `clean` targets. We want to expose this functionality so that our project can be easily used as a dependency in Puck.
+Our root project will be using `make` as the build tool, with a makefile having `build`, `test` and `clean` targets. We want to expose this functionality so that the root project can be easily used as a dependency in Puck.
 
 For the project, we would write a `Package.json` file like:
 
@@ -68,16 +68,18 @@ For the project, we would write a `Package.json` file like:
 {
     "dependencies": [
 
-        { "repo": "https://gitorious.org/gwilson/libapple.git",
+        { "repo": "https://gitorious.org/fake123/antifier.git",
           "tag":  "v1.*" },
 
-        { "repo": "git@bitbucket.org:jsmith/libbear.git",
-          "tree": "feature-claws",
-          "path": "libbear-claws" },
+        { "repo": "/mnt/team-grizzly/libbear",
+          "ref":  "feature-claws",
+          "path": "libbear-claws",
+          "commands": { "build": "make fast" } },
 
-        { "repo": "https://github.com/jcitizen/libcat.git",
+        { "repo": "git@bitbucket.org:fake456/libcat.git",
           "tag":  "v2.5.*",
-          "env":  { "LIBCAT_CUTENESS": "9001" } }
+          "env":  { "LIBCAT_CUTENESS": "9001" },
+          "dev":  true }
 
     ],
 
@@ -93,9 +95,21 @@ See [package-schema.json](package-schema.json) for a formal specification of `Pa
 
 
 
-### Example
+### `puck update`
 
-Running `puck update` in a project having the example `Package.json` above:
+Running `puck update` for the first time in a project having the example `Package.json` above:
+
+- the Antifier repository URL will be cloned to `deps/antifier-1`, and it will be checked out to tag `v1.3.2`, because that is the highest tag matching the given pattern `v1.*`. Antifier at tag `v1.3.2` has its own `Package.json` specifying its own dependencies. So then:
+
+  - Libbear will be cloned from the URL specified in Antifier's `Package.json`, and will be checked out to `v3.0`, because that is the highest tag matching the pattern `v3.*` given by Antifier's `Package.json`. Libbear at `v3.0` has no `Package.json`, so Puck moves onto the next dependency of Antifier.
+
+  - Libdog will be cloned from the URL specified in Antifier's `Package.json`, and will be checked out to `v1.7.1`, because that is the highest tag matching the pattern `v1.*` given by Antifier's `Package.json`. Libdog at `v1.7.1` has a `Package.json`, so then:
+
+    - Libcat will be cloned from the URL specified in Libdog's `Package.json`, and will be checked out to `v2.2` because that is the highest tag matching the pattern `v2.*` given by Libdog's `Package.json`. 
+
+
+
+
 
 - the Libpp repository URL will be cloned to `deps/libpp-14`, and it will be checked out to commit `5e562d`. Libpp doesn't have a `Package.json` file in that commit, so it is treated as having no dependencies.
 

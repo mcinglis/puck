@@ -2,6 +2,8 @@
 
 from argparse import ArgumentParser
 
+from .package import Package
+
 
 def parse_args(name, argv):
     p = make_arg_parser(name)
@@ -33,14 +35,15 @@ def make_arg_parser(prog):
             description=
                 'Downloads all dependencies and development dependencies of '
                 'the enclosing package, and all dependencies of '
-                'dependencies, into a `dependencies/` directory in the '
-                'enclosing package\'s root directory. Then, checks out the '
-                'specified version (if any) of each dependency.')
+                'dependencies, into a `{}` directory in the enclosing '
+                'package\'s root directory. Then, checks out the specified '
+                'version (if any) of each dependency.'
+                .format(Package.DEPS_DIR))
     up.set_defaults(sub='update')
     up.add_argument('-f', '--no-verify', action='store_true',
             help=
-                'Do not `git tag --verify` the chosen tag for dependencies '
-                'specified with a tag pattern.')
+                'Do not verify (e.g. `git tag --verify`) the chosen tag for '
+                'dependencies specified with a tag pattern.')
 
     xp = subs.add_parser('execute', aliases=['x'],
             description=

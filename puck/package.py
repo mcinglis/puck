@@ -1,12 +1,12 @@
 
 
 import os
+import re
 from subprocess import call, check_call
 from shlex import split as shell_split
 
 from .repo import Repo
-from .util import load_json, derive_path
-
+from .util import load_json, derive_path, event
 
 
 class Package:
@@ -40,29 +40,27 @@ class Package:
 
     @classmethod
     def from_dict(cls, root_path, d, **kwargs):
-        return cls(root_path = root_path,
-                   deps      = d.get('dependencies', None),
-                   commands  = d.get('commands', None),
+        return cls(root_path,
+                   deps     = d.get('dependencies', None),
+                   commands = d.get('commands', None),
                    **kwargs)
 
     def __init__(self, root_path, deps_dir=None, deps=None, commands=None,
-                       observer=None, name=None):
+                       name=None, observers=None):
         self.root_path = root_path
         self.deps_dir  = deps_dir or os.path.join(self.root_path,
                                                   self.__class__.DEPS_DIR)
-        self.deps = {Dependency(self.deps_dir, observer=observer, **d)
+        self.deps = {Dependency(self.deps_dir, observers=observers, **d)
                      for d in (deps or set())}
         self.commands = commands or dict()
-        self.observer = observer
+        self.observers = observers or list()
         self.name = name or os.path.basename(os.path.realpath(self.root_path))
 
     def __str__(self):
         return '{}(root_path={})'.format(self.__class__.__name__,
                                          self.root_path)
 
-    def event(self, event, *args, **kwargs):
-        if self.observer:
-            self.observer.notify(event=event, source=self, *args, **kwargs)
+    event = event
 
     def select_deps(self, dev):
         return self.deps if dev else {d for d in self.deps if not d.dev}
@@ -74,14 +72,14 @@ class Package:
         else:
             call(command, cwd=self.root_path, env=None)
 
-    def update(self, dev=False, updated=None, verify=True):
+    def update(self, updated=None, verify=True, dev=False):
         updated = updated or set()
         for dep in self.select_deps(dev):
             updated |= dep.update(updated, verify=verify)
         return updated
 
     def execute(self, command, executed=None, env=None, check=False,
-                      dev=False, me_too=True):
+                      me_too=True, dev=False):
         executed = executed or set()
         # Execute the given command in all dependencies:
         for dep in self.select_deps(dev):
@@ -95,7 +93,7 @@ class Package:
                 self.event('no-command-handler', command=command)
         return executed
 
-    def wipe(self, dev=False, force=True):
+    def wipe(self, force=True, dev=False):
         for dep in self.select_deps(dev):
             if os.access(dep.full_path, os.F_OK):
                 self.call(['rm', '-rf' + ('' if force else 'I'),
@@ -106,29 +104,46 @@ class Dependency:
 
     '''
     Represents the data entity formed by objects in the `"dependencies"` array
-    of a `Package.json` file. Objects of this class are used to set up the
-    directory of the dependency, and instantiate a new `Package` instance to
-    manage that directory (and thus its own dependencies).
+    of a `Package.json` file. Objects of this class are used to clone or update
+    the repository to the configured path, and instantiate a new `Package`
+    instance to manage that directory (and thus its own dependencies).
     '''
 
-    @classmethod
-    def from_dict(cls, d, deps_dir, **kwargs):
-        kwargs.update(d)
-        return cls(deps_dir=deps_dir, **kwargs)
+    _version_tag_pattern = re.compile(r'^v(?P<major>\d)\.((\*)|'
+                                       r'((?P<minor>\d)\.((\*)|'
+                                       r'(?P<patch>\d))))$')
 
-    def __init__(self, deps_dir, repo, path=None, tag=None, ref=None,
-                       dev=False, env=None, commands=None, observer=None):
-        self.deps_dir = deps_dir
-        self.repo     = Repo.from_json_value(repo, observer=observer)
-        self.path     = path or derive_path(self.repo.url)
-        self.tag      = tag
-        self.tree     = tree
-        self.dev      = dev
-        self.env      = dict(list((env or dict()).items())
-                           + [('DEPS_DIR', self.deps_dir)])
-        self.commands = commands or dict()
-        self.observer = observer
-        self.package  = None
+    @classmethod
+    def _path_suffix_from_version(cls, tag):
+        if not tag:
+            return ''
+        m = cls._version_tag_pattern.match(tag)
+        if m:
+            return '-' + '.'.join(n
+                                  for n in m.group('major', 'minor', 'patch')
+                                  if n)
+        else:
+            return ''
+
+    @classmethod
+    def from_dict(cls, d, **kwargs):
+        kwargs.update(d)
+        return cls(**kwargs)
+
+    def __init__(self, deps_dir, repo, path=None, ref=None, tag=None,
+                       dev=False, env=None, commands=None, observers=None):
+        self.deps_dir  = deps_dir
+        self.repo      = Repo.from_json_value(repo, observers=observers)
+        self.ref       = ref    # commit, branch, or tag
+        self.tag       = tag    # tag pattern like 'v3.*'
+        self.dev       = dev
+        self.env       = env or dict()
+        self.commands  = commands or dict()
+        self.path      = (path or
+                          (derive_path(self.repo.url)
+                         + self.__class__._path_suffix_from_version(self.tag)))
+        self.observers = observers or list()
+        self.package   = None
 
     @property
     def full_path(self):
@@ -138,31 +153,28 @@ class Dependency:
         return '{}(full_path={})'.format(self.__class__.__name__,
                                          self.full_path)
 
-    def event(self, event, **kwargs):
-        if self.observer:
-            self.observer.notify(event, source=self, **kwargs)
+    event = event
 
     def load_package(self, force=False):
-        if force or not self.package:
+        if (not self.package) or force:
             if not os.access(self.full_path, os.F_OK):
-                self.event('missing-dep')
+                self.event('missing-dep', dependency=self)
                 self.package = None
                 return False
-            self.event('load-package')
             self.package = Package.from_path(
                                self.full_path,
                                require_json = False,
                                deps_dir     = os.path.abspath(self.deps_dir),
-                               observer     = self.observer,
+                               observers    = self.observers,
                                name         = self.path)
         return True
 
     def same(self, other):
-        return (self.repo == other.repo
-            and self.tag == other.tag
-            and (self.tag or
-                 self.ref == other.ref)
-            and self.env == other.env)
+        return (self.repo     == other.repo
+            and self.tag      == other.tag
+            and (self.tag or self.ref == other.ref)
+            and self.env      == other.env
+            and self.commands == other.commands)
 
     def conflicts_with(self, deps):
         for d in deps:
@@ -172,12 +184,18 @@ class Dependency:
                 return True
         return False
 
+    def update_repo(self, verify=True):
+        self.repo.get_latest(self.full_path)
+        if self.tag:
+            self.repo.checkout_tag(self.full_path, self.tag, verify=verify)
+        else:
+            self.repo.checkout(self.full_path, self.ref or 'master')
+
     def update(self, updated, verify=True):
         if self.conflicts_with(updated):
             return updated
-        self.event('update')
-        self.repo.update(self.full_path,
-                         tag_pattern=self.tag, tree=self.tree, verify=verify)
+        self.event('update', package=self.package)
+        self.update_repo(verify=verify)
         updated |= {self}
         if self.load_package(force=True):
             return self.package.update(updated=updated)
