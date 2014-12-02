@@ -1,4 +1,8 @@
 
+**Puck is a work in progress - you shouldn't use it for anything yet**
+
+------
+
 **Puck** is a tool for downloading a project's dependencies (and sub-dependencies), and for applying "commands" to each of those dependencies. You can use it for decoupling a project from the dependencies of its own dependencies, and from the build process (if any) of its dependencies.
 
 Puck requires little buy-in; packages can be used as dependencies without having a `Package.json` file of their own. Puck is small and purpose-built, and has an accessible API. Puck is based on a decentralized model, so you can easily meld it to your requirements.
@@ -156,5 +160,26 @@ Questions, discussion, bug reports and feature requests are welcome at [the GitH
 To contribute changes, you're welcome to [email me](mailto:me@minglis.id.au) patches as per `git format-patch`, or to send me a pull request on any of the aforementioned sites. You're also welcome to just send me a link to your remote repository, and I'll merge stuff from that as I want to.
 
 To accept notable contributions, I'll require you to assign your copyright to me. In your email/pull request and commit messages, please insert: "*I hereby irrevocably transfer to Malcolm Inglis (http://minglis.id.au) all copyrights, title, and interest, throughout the world, in these contributions to Puck*". If you can, please sign the email or pull request, ensuring your GPG key is publicly available.
+
+
+## License
+
+**Copyright 2014 Malcolm Inglis <http://minglis.id.au>**
+
+Puck is free software: you can redistribute it and/or modify it under the terms of the [GNU Affero General Public License](https://gnu.org/licenses/agpl.html) as published by the [Free Software Foundation](https://fsf.org), either version 3 of the License, or (at your option) any later version.
+
+Puck is distributed in the hope that it will be useful, but **without any warranty**; without even the implied warranty of **merchantability** or **fitness for a particular purpose**. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with Puck. If not, see <https://gnu.org/licenses/>.
+
+[Contact me](mailto:me@minglis.id.au) for proprietary licensing options.
+
+### Why AGPL?
+
+[I believe that nonfree software is harmful](http://minglis.id.au/blog/2014/04/09/free-software-free-society.html), and I don't want to contribute to its development at all. I believe that a free society must necessarily operate on free software. I want to encourage the development of free software, and discourage the development of nonfree software.
+
+The [GPL](https://gnu.org/licenses/gpl.html) was designed to ensure that the software stays free software; "to ensure that every user has freedom". The GPL's protections may have sufficed in 1990, but they don't in 2014. The GPL doesn't consider users of a web service to be users of the software implementing that server. Thankfully, the AGPL does.
+
+The AGPL ensures that if Puck is used to implement a web service, then the entire source code of that web service must be free software. This way, I'm not contributing to nonfree software, whether it's executed locally or provided over a network.
 
 
