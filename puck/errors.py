@@ -1,4 +1,3 @@
-#!/bin/env python3
 
 # Copyright 2014  Malcolm Inglis <http://minglis.id.au>
 #
@@ -18,17 +17,23 @@
 # along with Puck. If not, see <https://gnu.org/licenses/>.
 
 
-from puck.main import main
+class PuckError(Exception):
+    exit_code = 1
 
 
-if __name__ == '__main__':
-    import os
-    import sys
-    sys.exit(main(name    = os.path.basename(sys.argv[0]),
-                  argv    = sys.argv[1:],
-                  env     = dict(os.environ),
-                  cwd     = '.',
-                  outfile = sys.stdout,
-                  errfile = sys.stderr))
+class NoPackageJsonError(PuckError):
+    exit_code = 2
+
+
+class MissingDependencyError(PuckError):
+    exit_code = 3
+
+
+class DependencyCycleError(PuckError):
+    exit_code = 4
+
+
+class RepoVerificationError(PuckError):
+    exit_code = 5
 
 

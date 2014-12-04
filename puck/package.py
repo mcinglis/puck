@@ -19,11 +19,14 @@
 
 import os
 import re
-from subprocess import call, check_call
 from shlex import split as shell_split
+from collections import ChainMap
 
 from .repo import Repo
-from .util import load_json, derive_path, event
+from .errors import (NoPackageJsonError, MissingDependencyError,
+                     DependencyCycleError)
+from .util import (load_json, derive_path, event_method, default_caller,
+                   call_method)
 
 
 class Package:
@@ -39,82 +42,75 @@ class Package:
     @classmethod
     def from_path(cls, path, **kwargs):
         try:
-            return cls.from_json(root_path=path,
+            return cls.from_json(path=path,
                                  json_path=os.path.join(path, cls.JSON_PATH),
                                  **kwargs)
         except FileNotFoundError as e:
-            if os.path.samefile(path, os.path.expanduser('~')):
-                raise e
+            if not path or os.path.samefile(path, os.path.expanduser('~')):
+                raise NoPackageJsonError()
             else:
                 return cls.from_path(os.path.dirname(path), **kwargs)
 
     @classmethod
-    def from_json(cls, root_path, json_path, require_json=True, **kwargs):
+    def from_json(cls, path, json_path, require_json=True, **kwargs):
         jsond = (load_json(json_path)
                  if require_json or os.access(json_path, os.F_OK) else
                  dict())
-        return cls.from_dict(root_path, jsond, **kwargs)
-
-    @classmethod
-    def from_dict(cls, root_path, d, **kwargs):
-        return cls(root_path,
-                   deps     = d.get('dependencies', None),
-                   commands = d.get('commands', None),
+        return cls(path,
+                   dependencies = jsond.get('dependencies'),
+                   commands     = jsond.get('commands'),
                    **kwargs)
 
-    def __init__(self, root_path, deps_dir=None, deps=None, commands=None,
-                       name=None, observers=None):
-        self.root_path = root_path
-        self.deps_dir  = deps_dir or os.path.join(self.root_path,
-                                                  self.__class__.DEPS_DIR)
-        self.deps = {Dependency(self.deps_dir, observers=observers, **d)
-                     for d in (deps or set())}
+    def __init__(self, path, dependencies=None, commands=None,
+                       observers=None, caller=None):
+        self.path = path
+        self.caller = caller or default_caller
         self.commands = commands or dict()
         self.observers = observers or list()
-        self.name = name or os.path.basename(os.path.realpath(self.root_path))
+        self.dependencies = [Dependency(self.deps_dir,
+                                        observers=self.observers,
+                                        caller=self.caller, **d)
+                             for d in (dependencies or set())]
+
+    @property
+    def deps_dir(self):
+        return os.path.join(self.path, self.__class__.DEPS_DIR)
 
     def __str__(self):
-        return '{}(root_path={})'.format(self.__class__.__name__,
-                                         self.root_path)
+        return '{}(path={})'.format(self.__class__.__name__, self.path)
 
-    event = event
+    event = event_method
 
-    def select_deps(self, dev):
-        return self.deps if dev else {d for d in self.deps if not d.dev}
+    call = call_method
 
-    def call(self, command, check=False, env=None):
-        self.event('call', command=command, cwd=self.root_path)
-        if check:
-            check_call(command, cwd=self.root_path, env=None)
-        else:
-            call(command, cwd=self.root_path, env=None)
+    def apply_deps(self, f, dev=False):
+        for dep in self.dependencies:
+            if not dev and dep.dev: continue
+            f(dep)
 
     def update(self, updated=None, verify=True, dev=False):
-        updated = updated or set()
-        for dep in self.select_deps(dev):
-            updated |= dep.update(updated, verify=verify)
-        return updated
+        self.apply_deps(lambda d: d.update(updated or [], verify=verify),
+                        dev=dev)
 
-    def execute(self, command, executed=None, env=None, check=False,
-                      me_too=True, dev=False):
-        executed = executed or set()
-        # Execute the given command in all dependencies:
-        for dep in self.select_deps(dev):
-            executed |= dep.execute(command, executed, env=env, check=check)
-        # Execute the given command for this package, unless told otherwise:
-        if me_too:
-            if command in self.commands.keys():
-                self.event('execute', command=command)
-                self.call(self.commands[command], check=check, env=env)
-            else:
-                self.event('no-command-handler', command=command)
-        return executed
+    def execute(self, command, executed=None, check=False, env=None,
+                      root=True, dev=False):
+        self.apply_deps(lambda d: d.execute(command, executed or [],
+                                            check=check, env=env),
+                        dev=dev)
+        if root:
+            self.execute_self(command, check=check, env=env)
 
-    def wipe(self, force=True, dev=False):
-        for dep in self.select_deps(dev):
-            if os.access(dep.full_path, os.F_OK):
-                self.call(['rm', '-rf' + ('' if force else 'I'),
-                           dep.full_path])
+    def execute_self(self, command, check=False, env=None):
+        if command in self.commands.keys():
+            self.event('execute', package=self, command=command)
+            c = self.commands[command]
+            self.call(c, shell=True, cwd=self.path, check=check, env=env)
+        else:
+            self.event('no-command-handler', command=command)
+
+    def wipe(self, force=False, dev=False):
+        self.apply_deps(lambda d: d.wipe(force=force),
+                        dev=dev)
 
 
 class Dependency:
@@ -126,65 +122,32 @@ class Dependency:
     instance to manage that directory (and thus its own dependencies).
     '''
 
-    _version_tag_pattern = re.compile(r'^v(?P<major>\d)\.((\*)|'
-                                       r'((?P<minor>\d)\.((\*)|'
-                                       r'(?P<patch>\d))))$')
-
-    @classmethod
-    def _path_suffix_from_version(cls, tag):
-        if not tag:
-            return ''
-        m = cls._version_tag_pattern.match(tag)
-        if m:
-            return '-' + '.'.join(n
-                                  for n in m.group('major', 'minor', 'patch')
-                                  if n)
-        else:
-            return ''
-
-    @classmethod
-    def from_dict(cls, d, **kwargs):
-        kwargs.update(d)
-        return cls(**kwargs)
-
-    def __init__(self, deps_dir, repo, path=None, ref=None, tag=None,
-                       dev=False, env=None, commands=None, observers=None):
-        self.deps_dir  = deps_dir
-        self.repo      = Repo.from_json_value(repo, observers=observers)
-        self.ref       = ref    # commit, branch, or tag
+    def __init__(self, in_dir, repo, path=None, ref=None, tag=None, dev=False,
+                       env=None, commands=None, observers=None, caller=None):
+        self.in_dir    = in_dir
+        self.caller    = caller or default_caller
+        self.repo      = Repo.from_json_value(repo, observers=observers,
+                                              caller=self.caller)
+        self.path      = path or derive_path(self.repo.url)
+        self.ref       = ref    # e.g. a commit, branch, or tag
         self.tag       = tag    # tag pattern like 'v3.*'
         self.dev       = dev
         self.env       = env or dict()
         self.commands  = commands or dict()
-        self.path      = (path or
-                          (derive_path(self.repo.url)
-                         + self.__class__._path_suffix_from_version(self.tag)))
         self.observers = observers or list()
         self.package   = None
 
     @property
     def full_path(self):
-        return os.path.join(self.deps_dir, self.path)
+        return os.path.join(self.in_dir, self.path)
 
     def __str__(self):
         return '{}(full_path={})'.format(self.__class__.__name__,
                                          self.full_path)
 
-    event = event
+    event = event_method
 
-    def load_package(self, force=False):
-        if (not self.package) or force:
-            if not os.access(self.full_path, os.F_OK):
-                self.event('missing-dep', dependency=self)
-                self.package = None
-                return False
-            self.package = Package.from_path(
-                               self.full_path,
-                               require_json = False,
-                               deps_dir     = os.path.abspath(self.deps_dir),
-                               observers    = self.observers,
-                               name         = self.path)
-        return True
+    call = call_method
 
     def same(self, other):
         return (self.repo     == other.repo
@@ -193,13 +156,18 @@ class Dependency:
             and self.env      == other.env
             and self.commands == other.commands)
 
-    def conflicts_with(self, deps):
-        for d in deps:
-            if d.path == self.path:
-                if not self.same(d):
-                    self.event('conflict', d)
-                return True
-        return False
+    def same_in(self, others):
+        return any(d for d in others if self.same(d))
+
+    def load_package(self, force=False):
+        if (not self.package) or force:
+            if not os.access(self.full_path, os.F_OK):
+                self.event('missing-dependency', dependency=self)
+                raise MissingDependencyError()
+            self.package = Package.from_path(self.full_path,
+                                             require_json = False,
+                                             observers    = self.observers)
+            self.package.commands.update(self.commands)
 
     def update_repo(self, verify=True):
         self.repo.get_latest(self.full_path)
@@ -208,32 +176,30 @@ class Dependency:
         else:
             self.repo.checkout(self.full_path, self.ref or 'master')
 
-    def update(self, updated, verify=True):
-        if self.conflicts_with(updated):
-            return updated
-        self.event('update', package=self.package)
-        self.update_repo(verify=verify)
-        updated |= {self}
-        if self.load_package(force=True):
-            return self.package.update(updated=updated)
-        else:
-            return updated
+    def dependency_cycle_err(self):
+        self.event('dependency-cycle', dependency=self)
+        raise DependencyCycleError()
 
-    def execute(self, command, executed, env=None, check=False):
-        if self.conflicts_with(executed):
-            return executed
-        executed |= {self}
-        if self.load_package():
-            env = dict(list((env or dict()).items())
-                     + list(self.env.items()))
-            if command in self.commands.keys():
-                self.package.event('execute', command=command)
-                self.package.call(self.commands[command], env=env, check=check)
-            else:
-                executed |= self.package.execute(command,
-                                                 executed=executed,
-                                                 env=env,
-                                                 check=check)
-        return executed
+    def update(self, updated, verify=True):
+        if self.same_in(updated):
+            self.dependency_cycle_err()
+        self.event('update', dependency=self)
+        self.update_repo(verify=verify)
+        self.load_package(force=True)
+        updated.append(self)
+        self.package.update(updated=updated, verify=verify)
+
+    def execute(self, command, executed, check=False, env=None):
+        if self.same_in(executed):
+            self.dependency_cycle_err()
+        self.load_package()
+        executed.append(self)
+        self.package.execute(command, executed=executed,
+                                      check=check,
+                                      env=ChainMap(self.env, env or dict()))
+
+    def wipe(self, force=False):
+        if os.access(self.full_path, os.F_OK):
+            self.call(['rm', '-rf' + ('' if force else 'I'), self.full_path])
 
 

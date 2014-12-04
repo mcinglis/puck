@@ -18,16 +18,18 @@
 
 
 import os
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, CalledProcessError
 
-from .util import derive_path, event
+from .util import event_method, default_caller, call_method
+from .errors import RepoVerificationError
 
 
 class GitRepo:
 
-    def __init__(self, url, observers=None):
+    def __init__(self, url, observers=None, caller=None):
         self.url = os.path.expanduser(url)
         self.observers = observers or list()
+        self.caller = caller or default_caller
 
     def __eq__(self, other):
         return (self.type == other.type
@@ -37,14 +39,9 @@ class GitRepo:
     def type(self):
         return 'git'
 
-    event = event
+    event = event_method
 
-    def call(self, command, cwd=None, output=False):
-        self.event('call', command=command, cwd=cwd)
-        if output:
-            return check_output(command, cwd=cwd).decode().splitlines()
-        else:
-            check_call(command, cwd=cwd)
+    call = call_method
 
     def get_latest(self, path):
         if os.path.isdir(path):
@@ -54,10 +51,13 @@ class GitRepo:
 
     def tag_list(self, path, pattern):
         return self.call(['git', 'tag', '--list', pattern], cwd=path,
-                         output=True)
+                         output=True).splitlines()
 
     def tag_verify(self, path, tag):
-        self.call(['git', 'tag', '--verify', tag], cwd=path)
+        try:
+            self.call(['git', 'tag', '--verify', tag], cwd=path)
+        except CalledProcessError:
+            raise RepoVerificationError()
 
     def checkout_tag(self, path, pattern, verify=True):
         tags = self.tag_list(path, pattern)

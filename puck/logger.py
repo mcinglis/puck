@@ -19,17 +19,17 @@
 
 class Logger:
 
-    def __init__(self, outfile, errfile):
+    def __init__(self, outfile, errfile, on_err=None):
         self.outfile = outfile
         self.errfile = errfile
         self.dispatch = {
-            'missing-package-json': self.log_missing_package_json,
+            'no-package-json':      self.log_no_package_json,
             'execute':              self.log_execute,
             'no-command-handler':   self.log_no_command_handler,
             'call':                 self.log_call,
             'update':               self.log_update,
             'no-matching-tags':     self.log_no_matching_tags,
-            'missing-dep':          self.log_missing_dep
+            'missing-dependency':   self.log_missing_dependency
         }
 
     def __str__(self):
@@ -40,7 +40,7 @@ class Logger:
         if self.outfile:
             print(*args, file=self.outfile, **kwargs)
 
-    def err(self, *args, **kwargs):
+    def err(self, *args, exitcode=1, **kwargs):
         if self.errfile:
             print(*args, file=self.errfile, **kwargs)
 
@@ -51,34 +51,40 @@ class Logger:
         self.err('WARNING: event `{}` received: kwargs={}'
                    .format(event, kwargs))
 
-    def log_missing_package_json(self, event):
+    def log_no_package_json(self, event):
         self.err('ERROR: no `{}` found in all directories up to the home '
                  'directory.'
                    .format(Package.JSON_PATH))
 
-    def log_missing_dep(self, event, dependency):
-        self.err('ERROR: dependency directory `{}` was not accessible when '
-                 'attempting to read any contained `{}`.'
+    def log_missing_dependency(self, event, dependency):
+        self.err('ERROR: dependency directory `{}` is missing.'
                    .format(dependency.full_path, Package.JSON_PATH))
 
+    def log_dependency_cycle(self, event, dependency):
+        self.err('ERROR: cycle detected in the dependency tree; some '
+                 'dependency of `{}` also includes .'
+                   .format(dependency))
+
     def log_execute(self, event, package, command):
-        self.out('{:<12} executing command `{}`'
-                   .format(package + ':', command))
+        self.out('Executing command `{}` for: {}'
+                   .format(command, package.path + ':'))
 
     def log_no_command_handler(self, event, package, command):
         self.out('{:<12} no handler for command `{}`'
                    .format(package + ':', command))
 
-    def log_call(self, event, command, cwd):
-        self.out('[{}] {}'
-                   .format(cwd, ' '.join(command)))
+    def log_call(self, event, args, cwd=None):
+        if cwd:
+            self.out('[{}]'.format(cwd), end=' ')
+        self.out(args if isinstance(args, str) else ' '.join(args))
 
-    def log_update(self, event, package):
-        self.out('Updating package {}...'
-                   .format(package))
+    def log_update(self, event, dependency):
+        self.out('Updating dependency: {}'
+                   .format(dependency))
 
     def log_no_matching_tags(self, event, package, pattern):
         self.err('WARNING: no matching tags in package {} for pattern `{}`.'
                    .format(package, pattern))
+
 
 

@@ -19,6 +19,7 @@
 
 import json
 import re
+import subprocess
 
 
 def load_json(path):
@@ -32,9 +33,22 @@ def derive_path(url):
     return DERIVE_PATH_REGEX.sub('', url)
 
 
-# Used as a mixin function for various objects that notify Logger objects.
-def event(self, event, *args, **kwargs):
+def event_method(self, event, *args, **kwargs):
     for o in self.observers:
         o.notify(event, *args, **kwargs)
+
+
+def default_caller(args, output=False, check=True, **kwargs):
+    if output:
+        return subprocess.check_output(args, universal_newlines=True, **kwargs)
+    elif check:
+        subprocess.check_call(args, **kwargs)
+    else:
+        subprocess.call(args, **kwargs)
+
+
+def call_method(self, args, **kwargs):
+    self.event('call', args=args, cwd=kwargs.get('cwd'))
+    return self.caller(args, **kwargs)
 
 
