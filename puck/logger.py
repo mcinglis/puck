@@ -73,7 +73,7 @@ class Logger:
 
     def log_no_command_handler(self, event, package, command):
         self.out('{:<12} no handler for command `{}`'
-                   .format(package.path + ':', command))
+                   .format(str(package.path) + ':', command))
 
     def log_call(self, event, args, cwd=None):
         if cwd:

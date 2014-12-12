@@ -57,6 +57,8 @@ def test_package1():
     call(['puck', 'execute', 'build', '--root'], cwd=cwd)
     assert read_file('package1/output') == 'default package1 var\n'
 
+    call(['puck', 'execute', 'foobar'], cwd=cwd)
+
 
 @test
 def test_package3():
@@ -73,6 +75,8 @@ def test_package3():
         read_file('package3/deps/package1/output') == 'default package1 var\n',
         read_file('package3/deps/package2/output') == 'second commit: set!\n'
     ])
+
+    call(['puck', 'execute', 'foobar'], cwd=cwd)
 
 
 @test
@@ -92,6 +96,8 @@ def test_package4():
         read_file('package4/deps/package2/output') == 'second commit: set!\n',
         read_file('package4/deps/package3/output') == 'building package 3\n',
     ])
+
+    call(['puck', 'execute', 'foobar'], cwd=cwd)
 
 
 @test
@@ -113,6 +119,8 @@ def test_package5():
         read_file('package5/deps/package3/output') == 'building package 3\n',
         read_file('package5/deps/package4/output') == 'building package 4\n',
     ])
+
+    call(['puck', 'execute', 'foobar'], cwd=cwd)
 
 
 def main():
