@@ -1,2 +1,3 @@
 *.pyc
 .make
+tests/package*

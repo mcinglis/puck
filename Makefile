@@ -22,7 +22,7 @@ tests: .make/tests
 
 .PHONY: clean-tests
 clean-tests:
-	rm -rf tests/package{1,2,3,4} .make/tests
+	rm -rf tests/package{1,2,3,4,5} .make/tests
 
 
 .PHONY: clean

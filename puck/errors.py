@@ -29,11 +29,15 @@ class MissingDependencyError(PuckError):
     exit_code = 3
 
 
-class DependencyCycleError(PuckError):
+class DependencyConflictError(PuckError):
     exit_code = 4
 
 
 class RepoVerificationError(PuckError):
     exit_code = 5
+
+
+class DuplicatePathError(PuckError):
+    exit_code = 6
 
 

@@ -29,7 +29,8 @@ class Logger:
             'call':                 self.log_call,
             'update':               self.log_update,
             'no-matching-tags':     self.log_no_matching_tags,
-            'missing-dependency':   self.log_missing_dependency
+            'missing-dependency':   self.log_missing_dependency,
+            'dependency-conflict':  self.log_dependency_conflict
         }
 
     def __str__(self):
@@ -60,18 +61,19 @@ class Logger:
         self.err('ERROR: dependency directory `{}` is missing.'
                    .format(dependency.full_path, Package.JSON_PATH))
 
-    def log_dependency_cycle(self, event, dependency):
-        self.err('ERROR: cycle detected in the dependency tree; some '
-                 'dependency of `{}` also includes .'
-                   .format(dependency))
+    def log_dependency_conflict(self, event, dep1, dep2):
+        self.err('ERROR: attempting to update a dependency to `{}` from '
+                 '`{}`, while a dependency from `{}` has already been updated '
+                 'there.'
+                   .format(dep1.full_path, dep2.repo.url, dep1.repo.url))
 
     def log_execute(self, event, package, command):
         self.out('Executing command `{}` for: {}'
-                   .format(command, package.path + ':'))
+                   .format(command, str(package.path) + ':'))
 
     def log_no_command_handler(self, event, package, command):
         self.out('{:<12} no handler for command `{}`'
-                   .format(package + ':', command))
+                   .format(package.path + ':', command))
 
     def log_call(self, event, args, cwd=None):
         if cwd:
@@ -79,8 +81,8 @@ class Logger:
         self.out(args if isinstance(args, str) else ' '.join(args))
 
     def log_update(self, event, dependency):
-        self.out('Updating dependency: {}'
-                   .format(dependency))
+        self.out('\n### Updating dependency at: {}'
+                   .format(dependency.full_path))
 
     def log_no_matching_tags(self, event, package, pattern):
         self.err('WARNING: no matching tags in package {} for pattern `{}`.'

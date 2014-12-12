@@ -44,10 +44,10 @@ class GitRepo:
     call = call_method
 
     def get_latest(self, path):
-        if os.path.isdir(path):
+        if path.is_dir():
             self.call(['git', 'fetch', '--tags'], cwd=path)
         else:
-            self.call(['git', 'clone', self.url, path], cwd='.')
+            self.call(['git', 'clone', self.url, str(path)], cwd='.')
 
     def tag_list(self, path, pattern):
         return self.call(['git', 'tag', '--list', pattern], cwd=path,

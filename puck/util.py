@@ -23,7 +23,7 @@ import subprocess
 
 
 def load_json(path):
-    with open(path, 'r') as f:
+    with path.open() as f:
         return json.load(f)
 
 
@@ -48,6 +48,9 @@ def default_caller(args, output=False, check=True, **kwargs):
 
 
 def call_method(self, args, **kwargs):
+    if 'cwd' in kwargs.keys():
+        kwargs['cwd'] = str(kwargs['cwd'])
+
     self.event('call', args=args, cwd=kwargs.get('cwd'))
     return self.caller(args, **kwargs)
 

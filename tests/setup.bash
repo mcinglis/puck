@@ -119,10 +119,11 @@ setup_package4() {
 {
     "dependencies": [
         { "repo": "../package2",
-          "ref": "branch1",
+          "tag": "v2.1.*",
           "commands": {
               "build": "./build.sh"
-          } },
+          },
+          "env": { "PACKAGE2_VAR": "set" } },
         { "repo": "../package3",
           "tag": "v2.*" }
     ],
@@ -138,11 +139,39 @@ EOF
 }
 
 
+setup_package5() {
+    mkdir package5
+    cd package5
+    git init
+    touch f1 f2
+    git add .
+    git commit --message "Commit 1"
+    git tag --annotate v1.0.0 --message ""
+    cat > Package.json <<EOF
+{
+    "dependencies": [
+        { "repo": "../package4" },
+        { "repo": "../package3",
+          "tag": "v2.*" }
+    ],
+    "commands": {
+        "build": "echo \"building package 5\" > output"
+    }
+}
+EOF
+    git add .
+    git commit --message "Commit 2"
+    git tag --annotate v1.1.0 --message ""
+    cd ..
+}
+
+
 main() {
     setup_package1
     setup_package2
     setup_package3
     setup_package4
+    setup_package5
 }
 
 

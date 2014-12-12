@@ -36,7 +36,7 @@ def main(name, argv, env, cwd, outfile=None, errfile=None):
             package.execute(args.command, env=env, check=args.check,
                             root=args.root, dev=not args.no_dev)
         elif args.sub == 'wipe':
-            package.wipe(force=args.force, dev=not args.no_dev)
+            package.wipe(force=args.force)
 
     except PuckError as e:
         return e.exit_code

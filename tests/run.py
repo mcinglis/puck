@@ -49,56 +49,82 @@ def test(f):
 
 @test
 def test_package1():
-    call(['puck', 'update'], cwd='package1')
+    cwd = 'package1'
+
+    call(['puck', 'update'], cwd=cwd)
     assert not exists('package1/deps')
 
-    call(['puck', 'execute', 'build', '--root'], cwd='package1')
+    call(['puck', 'execute', 'build', '--root'], cwd=cwd)
     assert read_file('package1/output') == 'default package1 var\n'
 
 
 @test
 def test_package3():
-    call(['puck', 'update', '--no-verify'], cwd='package3')
-    assert all([exists('package3/deps'),
-                exists('package3/deps/package1'),
-                exists('package3/deps/package2')])
+    cwd = 'package3'
 
-    call(['puck', 'execute', 'build'], cwd='package3')
-    assert all([read_file('package3/deps/package1/output')
-                  == 'default package1 var\n',
-                read_file('package3/deps/package2/output')
-                  == 'second commit: set!\n'])
+    call(['puck', 'update', '--no-verify'], cwd=cwd)
+    assert all([
+        exists('package3/deps/package1'),
+        exists('package3/deps/package2')
+    ])
+
+    call(['puck', 'execute', 'build'], cwd=cwd)
+    assert all([
+        read_file('package3/deps/package1/output') == 'default package1 var\n',
+        read_file('package3/deps/package2/output') == 'second commit: set!\n'
+    ])
 
 
 @test
 def test_package4():
-    call(['puck', 'update', '--no-verify'], cwd='package4')
-    assert all([exists('package4/deps'),
-                exists('package4/deps/package2'),
-                exists('package4/deps/package3/deps'),
-                exists('package4/deps/package3/deps/package1'),
-                exists('package4/deps/package3/deps/package2')])
+    cwd = 'package4'
 
-    call(['puck', 'execute', 'build'], cwd='package4')
-    assert all([read_file('package4/deps/package2/output')
-                  == 'first commit: unset!\n',
-                read_file('package4/deps/package3/output')
-                  == 'building package 3\n',
-                read_file('package4/deps/package3/deps/package1/output')
-                  == 'default package1 var\n',
-                read_file('package4/deps/package3/deps/package2/output')
-                  == 'second commit: set!\n'])
+    call(['puck', 'update', '--no-verify'], cwd=cwd)
+    assert all([
+        exists('package4/deps/package1'),
+        exists('package4/deps/package2'),
+        exists('package4/deps/package3')
+    ])
+
+    call(['puck', 'execute', 'build'], cwd=cwd)
+    assert all([
+        read_file('package4/deps/package1/output') == 'default package1 var\n',
+        read_file('package4/deps/package2/output') == 'second commit: set!\n',
+        read_file('package4/deps/package3/output') == 'building package 3\n',
+    ])
+
+
+@test
+def test_package5():
+    cwd = 'package5'
+
+    call(['puck', 'update', '--no-verify'], cwd=cwd)
+    assert all([
+        exists('package5/deps/package1'),
+        exists('package5/deps/package2'),
+        exists('package5/deps/package3'),
+        exists('package5/deps/package4')
+    ])
+
+    call(['puck', 'execute', 'build'], cwd=cwd)
+    assert all([
+        read_file('package5/deps/package1/output') == 'default package1 var\n',
+        read_file('package5/deps/package2/output') == 'second commit: set!\n',
+        read_file('package5/deps/package3/output') == 'building package 3\n',
+        read_file('package5/deps/package4/output') == 'building package 4\n',
+    ])
 
 
 def main():
     if not all(exists(d) for d in
-               ['package1', 'package2', 'package3', 'package4']):
+               ('package' + str(n) for n in range(1, 6))):
         print('Please run `./setup.bash` first.')
         return 1
 
     test_package1()
     test_package3()
     test_package4()
+    test_package5()
     return 0
 
 
