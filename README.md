@@ -37,7 +37,7 @@ Puck finds and parses a `Package.json` file in the package's root directory, whi
 Puck does not detect and remove garbage dependencies - repositories that were once a dependency, but no longer. You could get rid of those by something like `rm -rf deps && puck update`.
 
 
-## `puck execute foo`
+### `puck execute foo`
 
 **In short:** the command "foo" is executed in a depth-first traversal of the dependency tree. How a particular dependency responds to the "foo" command is specified in its `Package.json`: one dependency may be built with GNU Make, another with shell scripts, and one may not even require building. A command is only issued to a dependency once in the entire traversal, even if that dependency has multiple parents in the dependency tree.
 
