@@ -68,12 +68,12 @@ class Logger:
                    .format(dep1.full_path, dep2.repo.url, dep1.repo.url))
 
     def log_execute(self, event, package, command):
-        self.out('Executing command `{}` for: {}'
-                   .format(command, str(package.path) + ':'))
+        self.out('### {}: executing command `{}`...'
+                   .format(package.path, command))
 
     def log_no_command_handler(self, event, package, command):
-        self.out('{:<12} no handler for command `{}`'
-                   .format(str(package.path) + ':', command))
+        self.out('### {}: no handler for command `{}`'
+                   .format(package.path, command))
 
     def log_call(self, event, args, cwd=None):
         if cwd:

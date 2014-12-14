@@ -203,7 +203,7 @@ class Dependency:
         self.package.execute(command, executed=executed,
                                       check=check,
                                       env=ChainMap(
-                                              {'DEPS_DIR': str(self.deps_dir)},
+                                              {'DEPS_DIR': str(self.deps_dir.resolve())},
                                               self.env,
                                               env or dict()))
 
