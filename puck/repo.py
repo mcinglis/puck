@@ -24,20 +24,23 @@ from .util import default_caller, call_method
 from .errors import RepoVerificationError
 
 
-class GitRepo:
+class Repo:
 
-    def __init__(self, url, observers=None, caller=None):
-        self.url = os.path.expanduser(url)
+    @classmethod
+    def from_json_value(cls, jv, **kwargs):
+        if isinstance(jv, list):
+            return cls(urls=jv, **kwargs)
+        else:
+            return cls(urls=[jv], **kwargs)
+
+    def __init__(self, urls, observers=None, caller=None):
+        self.urls = [os.path.expanduser(url) for url in urls]
         self.observers = observers or list()
         self.caller = caller or default_caller
 
-    def __eq__(self, other):
-        return (self.type == other.type
-            and self.url == other.url)
-
     @property
-    def type(self):
-        return 'git'
+    def url(self):
+        return self.urls[0]
 
     def event(self, event, *args, **kwargs):
         for o in self.observers:
@@ -73,35 +76,5 @@ class GitRepo:
 
     def checkout(self, path, s):
         self.call(['git', 'checkout', s], cwd=path)
-
-
-class MercurialRepo:
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
-
-class Repo:
-
-    type_dispatch = {'git': GitRepo,
-                     'hg': MercurialRepo}
-
-    @classmethod
-    def from_json_value(cls, jv, **kwargs):
-        if isinstance(jv, str):
-            return GitRepo(url=jv, **kwargs)
-        else:
-            if len(jv) != 1:
-                raise ValueError('repo JSON object should only have a single '
-                                 'key-value pair, representing the type and '
-                                 'URL respectively')
-            typ, url = list(jv.items())[0]
-            return cls.new(typ, url, **kwargs)
-
-    @classmethod
-    def new(cls, typ, url, **kwargs):
-        if typ not in cls.type_dispatch.keys():
-            raise ValueError('unknown repository type "{}" for <{}>'
-                             .format(typ, url))
-        return cls.type_dispatch[typ](url, **kwargs)
 
 

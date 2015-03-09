@@ -30,16 +30,13 @@
                 "repo": { "oneOf": [
                     { "type": "string",
                       "description": "A Git repository URL." },
-                    { "type": "object",
-                      "properties": { "git": { "type": "string" } }
-                      "additionalProperties": false,
-                      "minProperties": 1,
-                      "maxProperties": 1 }
+                    { "type": "array",
+                      "items": { "type": "string" }  }
                 ] },
                 "path": { "type": "string" },
                 "ref":  { "type": "string" },
                 "tag":  { "type": "string" },
-                "dev":  { "type": "boolean" }
+                "dev":  { "type": "boolean" },
                 "env": {
                     "type": "object"
                     "patternProperties": {
@@ -49,8 +46,8 @@
                     }
                 },
                 "commands": { "$ref": "#/definitions/commands" }
-            }
-            "required": ["repo"]
+            },
+            "required": [ "repo" ]
         }
     }
 

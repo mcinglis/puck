@@ -62,10 +62,10 @@ class Logger:
                    .format(dependency.full_path, Package.JSON_PATH))
 
     def log_dependency_conflict(self, event, dep1, dep2):
-        self.err('ERROR: attempting to update a dependency to `{}` from '
-                 '`{}`, while a dependency from `{}` has already been updated '
-                 'there.'
-                   .format(dep1.full_path, dep2.repo.url, dep1.repo.url))
+        self.err('ERROR: dependency at `{}` has URLs `{}`, none of which are '
+                 'in the set of URLs of the dependency already updated at '
+                 'that path: `{}`'
+                   .format(dep1.full_path, dep2.repo.urls, dep1.repo.urls))
 
     def log_execute(self, event, package, command):
         self.out('### {}: executing command `{}`...'

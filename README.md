@@ -1,15 +1,13 @@
 
-**Puck** is a tool for recursively downloading a project's dependencies, and for applying "commands" to each of those dependencies. You can use it for decoupling a project from the dependencies of its own dependencies, and from the build process (if any) of its dependencies.
+**Puck** is a tool for recursively downloading a project's dependencies specified as Git repository URLs, and for applying "commands" to each of those dependencies. You can use it for decoupling a project from the dependencies of its own dependencies, and from the build process (if any) of its dependencies.
 
 Puck requires little buy-in; packages can be used as dependencies without having a `Package.json` file of their own. Puck is small and purpose-built. Puck is based on a decentralized model, so you can easily meld it to your requirements.
-
-Puck currently only works with Git repositories, but it has been modelled and documented to be agnostic as to what distributed version control system is used.
 
 
 
 ## How it works
 
-Puck finds and parses a `Package.json` file in the package's root directory, which holds a JSON object representing the dependencies of that package, and how to handle commands issued to it when it is used as a dependency.
+Puck finds and parses a `Package.json` file (per [`package-schema.json`](package-schema.json)) in the package's root directory, which holds a JSON object representing the dependencies of that package, and how to handle commands issued to it when it is used as a dependency.
 
 
 ### `puck update`

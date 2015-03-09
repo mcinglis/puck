@@ -133,7 +133,7 @@ class Dependency:
         self.caller    = caller or default_caller
         self.repo      = Repo.from_json_value(repo, observers=observers,
                                               caller=self.caller)
-        self.path      = Path(path or derive_path(self.repo.url))
+        self.path      = Path(path or derive_path(self.repo.urls[0]))
         self.ref       = ref    # e.g. a commit, branch, or tag
         self.tag       = tag    # tag pattern like 'v3.*'
         self.dev       = dev
@@ -156,9 +156,9 @@ class Dependency:
     call = call_method
 
     def same(self, other):
-        return (self.repo     == other.repo
+        return (set(self.repo.urls) & set(other.repo.urls)
             and self.tag      == other.tag
-            and (self.tag or self.ref == other.ref)
+            and (self.tag or (self.ref == other.ref))
             and self.env      == other.env
             and self.commands == other.commands)
 
@@ -203,11 +203,11 @@ class Dependency:
             return
         self.load_package()
         executed.append(self)
-        self.package.execute(command, executed=executed,
-                                      check=check,
-                                      env=ChainMap(
-                                              {'DEPS_DIR': str(self.deps_dir.resolve())},
-                                              self.env,
-                                              env or dict()))
+        self.package.execute(command,
+                       executed=executed,
+                       check=check,
+                       env=ChainMap({'DEPS_DIR': str(self.deps_dir.resolve())},
+                                    self.env,
+                                    env or dict()))
 
 
