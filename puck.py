@@ -24,12 +24,10 @@ from puck.main import main
 if __name__ == '__main__':
     import os
     import sys
-    from pathlib import Path
 
-    sys.exit(main(name    = Path(sys.argv[0]).name,
-                  argv    = sys.argv[1:],
+    sys.exit(main(argv    = sys.argv,
                   env     = dict(os.environ),
-                  cwd     = Path(),
+                  cwd     = os.getcwd(),
                   outfile = sys.stdout,
                   errfile = sys.stderr))
 

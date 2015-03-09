@@ -17,19 +17,21 @@
 # along with Puck. If not, see <https://gnu.org/licenses/>.
 
 
+from pathlib import Path
+
 from .args import parse_args
 from .logger import Logger
 from .errors import PuckError
 from .package import Package
 
 
-def main(name, argv, env, cwd, outfile=None, errfile=None):
+def main(argv, env, cwd, outfile=None, errfile=None):
 
-    args = parse_args(name, argv)
+    args = parse_args(argv)
     logger = Logger(outfile, errfile)
 
     try:
-        package = Package.from_path(cwd, observers=[logger])
+        package = Package.from_path(Path(cwd), observers=[logger])
         if args.sub == 'update':
             package.update(verify=not args.no_verify, dev=not args.no_dev)
         elif args.sub == 'execute':

@@ -17,14 +17,15 @@
 # along with Puck. If not, see <https://gnu.org/licenses/>.
 
 
+import os
 from argparse import ArgumentParser
 
 from .package import Package
 
 
-def parse_args(name, argv):
-    p = make_arg_parser(name)
-    args = p.parse_args(argv)
+def parse_args(argv):
+    p = make_arg_parser(os.path.basename(argv[0]))
+    args = p.parse_args(argv[1:])
     if not hasattr(args, 'sub'):
         p.error('no subcommand given')
     return args
@@ -39,7 +40,7 @@ def make_arg_parser(prog):
                 'specified and managed as separate Git repositories.',
             epilog=
                 'For more information, see: '
-                'https://github.com/mcinglis/package')
+                'https://github.com/mcinglis/puck')
     p.add_argument('-n', '--no-dev', action='store_true',
             help=
                 'Don\'t update dependencies of the enclosing package defined '
