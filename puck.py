@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     sys.exit(main(argv    = sys.argv,
                   env     = dict(os.environ),
-                  cwd     = os.getcwd(),
+                  cwd     = '.',
                   outfile = sys.stdout,
                   errfile = sys.stderr))
 

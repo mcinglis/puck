@@ -84,16 +84,6 @@ def make_arg_parser(prog):
             help=
                 'Also execute the command for the enclosing package.')
 
-    wp = subs.add_parser('wipe', aliases=['w'],
-            description=
-                'Removes each of the dependency directories, prompting for '
-                'confirmation on each one.')
-    wp.set_defaults(sub='wipe')
-    wp.add_argument('-f', '--force',  action='store_true',
-            help=
-                'Don\'t prompt for confirmation on removing each dependency '
-                'directory.')
-
     return p
 
 

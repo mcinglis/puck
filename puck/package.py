@@ -110,12 +110,6 @@ class Package:
         else:
             self.event('no-command-handler', package=self, command=command)
 
-    def wipe(self, force=False):
-        if self.deps_dir.exists():
-            for p in self.deps_dir.iterdir():
-                self.call(['rm', '-rf' + ('' if force else 'I'), str(p)])
-            self.call(['rm', '-r', str(self.deps_dir)])
-
 
 class Dependency:
 
