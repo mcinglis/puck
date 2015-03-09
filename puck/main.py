@@ -41,6 +41,7 @@ def main(argv, env, cwd, outfile=None, errfile=None):
             package.wipe(force=args.force)
 
     except PuckError as e:
+        # error event was logged before the exception was raised
         return e.exit_code
     else:
         return 0
