@@ -26,8 +26,7 @@ from collections import ChainMap
 from .repo import Repo
 from .errors import (NoPackageJsonError, MissingDependencyError,
                      DependencyConflictError, DuplicatePathError)
-from .util import (load_json, derive_path, event_method, default_caller,
-                   call_method)
+from .util import load_json, derive_path, default_caller, call_method
 
 
 class Package:
@@ -78,7 +77,9 @@ class Package:
     def __str__(self):
         return '{}(path={})'.format(self.__class__.__name__, str(self.path))
 
-    event = event_method
+    def event(self, event, *args, **kwargs):
+        for o in self.observers:
+            o.notify(event, *args, **kwargs)
 
     call = call_method
 
@@ -148,7 +149,9 @@ class Dependency:
     def __str__(self):
         return '{}(path={})'.format(self.__class__.__name__, str(self.path))
 
-    event = event_method
+    def event(self, event, *args, **kwargs):
+        for o in self.observers:
+            o.notify(event, *args, **kwargs)
 
     call = call_method
 

@@ -33,11 +33,6 @@ def derive_path(url):
     return DERIVE_PATH_REGEX.sub('', url)
 
 
-def event_method(self, event, *args, **kwargs):
-    for o in self.observers:
-        o.notify(event, *args, **kwargs)
-
-
 def default_caller(args, output=False, check=True, **kwargs):
     if output:
         return subprocess.check_output(args, universal_newlines=True, **kwargs)

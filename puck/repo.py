@@ -20,7 +20,7 @@
 import os
 from subprocess import check_call, check_output, CalledProcessError
 
-from .util import event_method, default_caller, call_method
+from .util import default_caller, call_method
 from .errors import RepoVerificationError
 
 
@@ -39,7 +39,9 @@ class GitRepo:
     def type(self):
         return 'git'
 
-    event = event_method
+    def event(self, event, *args, **kwargs):
+        for o in self.observers:
+            o.notify(event, *args, **kwargs)
 
     call = call_method
 
