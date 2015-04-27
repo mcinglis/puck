@@ -3,6 +3,8 @@
 
 Puck requires little buy-in; packages can be used as dependencies without having a `Package.json` file of their own. Puck is small and purpose-built. Puck is based on a decentralized model, so you can easily meld it to your requirements.
 
+Puck requires Python 3.4 or above.
+
 
 
 ## How it works
@@ -62,7 +64,7 @@ Every version tag will be signed with [my GPG key](http://pool.sks-keyservers.ne
 
 ## Collaboration
 
-Puck is available at [Gitorious](https://gitorious.org/mcinglis/puck), [Bitbucket](https://bitbucket.org/mcinglis/puck), and [GitHub](https://github.com/mcinglis/puck).
+Puck is available at [Bitbucket](https://bitbucket.org/mcinglis/puck) and [GitHub](https://github.com/mcinglis/puck).
 
 Questions, discussion, bug reports and feature requests are welcome at [the GitHub issue tracker](https://github.com/mcinglis/puck/issues), or via [emails](mailto:me@minglis.id.au).
 

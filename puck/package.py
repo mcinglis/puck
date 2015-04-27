@@ -160,7 +160,7 @@ class Dependency:
         for d in deps:
             if d.path == self.path:
                 if not self.same(d):
-                    self.event('dependency-conflict', dep1=d, dep2=self)
+                    self.event('dependency-conflict', path=self.path)
                     raise DependencyConflictError()
                 return True
         return False

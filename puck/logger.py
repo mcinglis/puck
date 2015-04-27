@@ -59,13 +59,11 @@ class Logger:
 
     def log_missing_dependency(self, event, dependency):
         self.err('ERROR: dependency directory `{}` is missing.'
-                   .format(dependency.full_path, Package.JSON_PATH))
+                   .format(dependency.full_path))
 
-    def log_dependency_conflict(self, event, dep1, dep2):
-        self.err('ERROR: dependency at `{}` has URLs `{}`, none of which are '
-                 'in the set of URLs of the dependency already updated at '
-                 'that path: `{}`'
-                   .format(dep1.full_path, dep2.repo.urls, dep1.repo.urls))
+    def log_dependency_conflict(self, event, path):
+        self.err('ERROR: conflict between dependencies at path `{}`'
+                   .format(path))
 
     def log_execute(self, event, package, command):
         self.out('### {}: executing command `{}`...'
