@@ -22,7 +22,7 @@ Puck finds and parses a `Package.json` file (per [`package-schema.json`](package
 
 - If a dependency has already been updated at this dependency's path, and they do not share the exact same configuration (version, environment, etc), then this is a dependency conflict, an error message is printed accordingly, and Puck stops updating. If they do share the same configuration, then Puck moves onto updating the next dependency if any, because it's already updated that dependency.
 
-- If a directory does not exist at `deps/<path>` within the root directory of the project, the repository is cloned to that path. If a directory does exist that path, then the latest changes are pulled into it.
+- If a directory does not exist at `deps/<path>` within the root directory of the project, the repository is cloned to that path. If a directory does exist that path, then the latest changes are fetched into it.
 
 - The repository is checked out to the specified tag or reference (if any):
 

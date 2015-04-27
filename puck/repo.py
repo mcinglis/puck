@@ -50,8 +50,7 @@ class Repo:
 
     def get_latest(self, path):
         if path.is_dir():
-            self.call(['git', 'pull'], cwd=path)
-            self.call(['git', 'fetch', '--tags'], cwd=path)
+            self.call(['git', 'fetch'], cwd=path)
         else:
             self.call(['git', 'clone', self.url, str(path)], cwd='.')
 
