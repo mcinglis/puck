@@ -180,8 +180,11 @@ class Dependency:
         self.repo.get_latest(self.full_path)
         if self.tag:
             self.repo.checkout_tag(self.full_path, self.tag, verify=verify)
+        elif self.ref:
+            self.repo.checkout(self.full_path, self.ref)
         else:
-            self.repo.checkout(self.full_path, self.ref or 'master')
+            self.repo.checkout(self.full_path, 'master')
+            self.repo.call(['git', 'pull'], cwd=self.full_path)
 
     def update(self, updated, verify=True):
         if self.path_done(updated):
