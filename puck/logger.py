@@ -82,9 +82,9 @@ class Logger:
         self.out('\n### Updating dependency at: {}'
                    .format(dependency.full_path))
 
-    def log_no_matching_tags(self, event, package, pattern):
+    def log_no_matching_tags(self, event, path, pattern):
         self.err('WARNING: no matching tags in package {} for pattern `{}`.'
-                   .format(package, pattern))
+                   .format(path, pattern))
 
 
 
