@@ -41,3 +41,7 @@ class DuplicatePathError(PuckError):
     exit_code = 6
 
 
+class FailedRepoCloneError(PuckError):
+    exit_code = 7
+
+

@@ -21,7 +21,7 @@ import os
 from subprocess import check_call, check_output, CalledProcessError
 
 from .util import default_caller, call_method
-from .errors import RepoVerificationError
+from .errors import RepoVerificationError, FailedRepoCloneError
 
 
 class Repo:
@@ -49,10 +49,19 @@ class Repo:
     call = call_method
 
     def get_latest(self, path):
-        if path.is_dir():
-            self.call(['git', 'fetch'], cwd=path)
-        else:
-            self.call(['git', 'clone', self.url, str(path)], cwd='.')
+        cloned = False
+        for url in self.urls:
+            try:
+                if path.is_dir():
+                    self.call(['git', 'fetch'], cwd=path)
+                else:
+                    self.call(['git', 'clone', url, str(path)], cwd='.')
+            except CalledProcessError:
+                continue # try another URL
+            cloned = True
+            break # stop trying to clone from URLS
+        if not cloned:
+            raise FailedRepoCloneError()
 
     def tag_list(self, path, pattern):
         return self.call(['git', 'tag', '--list', pattern], cwd=path,
